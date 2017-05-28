@@ -1,0 +1,7 @@
+# Generally don't persist these.
+*.zwc
+*.zwc.old
+modules/*/cache.zsh
+cache/
+log/
+history/

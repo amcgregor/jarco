@@ -34,15 +34,31 @@ Its etymology is a combination of:
 
 ## What can it do?
 
-* Save you time, energy, and frustration by speeding up common activities and correcting your mistakes.
-	* Never type `cd` again.
-	* Automatically jump to project directories by typing their name.
-	* If you utilize a "virtual environment" isolation system, never manually activate or deactivate it again.
-	* 
-* Provide a configurable and modular, information-rich prompt with support for Powerline symbols.
-* Be pretty, with syntax highlighting and customizable color, symbol, and label themes. The latter make it translatable.
+This is not a comprehensive list.
+
+* Kickstart a number of session management tools such as `screen` and `tmux`, or agents such as `gpg-agent` and `ssh-agent` in a simple and context-aware manner.
+
+* Provide a configurable and modular, information-rich greeting and prompt with support for Powerline symbols and both Emacs and Vim bindings.
+
+* Be pretty, with syntax highlighting and customizable color, symbol, and label themes. The latter makes jarco translatable. This styling is modelled on CSS, with cascading defaults and levels of specificity for fine-grained tuning.
+
 * Utilize other awesome Zsh projects as components, including support for more completions than you can shake a stick at.
-* Optionally try to keep itself up-to-date, once a week, on first use after 6am Saturday morning, local time. It'll even let you know what's new.
+
+* Optionally try to keep itself up-to-date, once a week, on first use after 6am Saturday morning, local time. It'll even let you know what's new, or what you're missing out on upstream and should merge.
+
+* Save you time, energy, and frustration by speeding up common activities and correcting your mistakes.
+
+  * Tab-complete (or `^P`) the crap out of anything.
+  
+  * Never type `cd` again, except to return to the next parent project or home folder.
+  
+  * Optionally spellcheck filesystem path arguments to commands.
+  
+  * Automatically jump to project directories by typing their name.
+  
+  * Reduce RSI through extensive prefix, inline, and suffix aliases, in some cases reducing characters typed by 30%.
+  
+  * Never manually activate or deactivate a "virtual environment" isolation system again.
 
 
 ## How should I use it?
@@ -54,7 +70,7 @@ If you only want to use what is provided, you'll need to:
 * Make sure you have Zsh and Git.
 * Optionally fork the repository, if you intend on making changes.
 * Clone the repository into `.zsh`, or add it as a submodule to your dotfiles repository.
-* Run Zsh for the first time to answer some hard questions.
+* Run Zsh for the first time to answer some hard questions. We'll tell you how to translate some of them into configuration or plugin selection on our side.
 * Add a line to the `.zshrc` configuration produced in the previous step.
 * Try it out.
 * Customize it by populating the `~/.config/jarco/` directory with __stuff__.
