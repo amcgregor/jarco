@@ -109,7 +109,7 @@ You may want to:
 All of these are adjustments are possible without making any changes to the files within jarco itself by populating the contents of the local configuration directory `~/.config/jarco/`, populating `~/.jarco/`, or modifying `~/.jarcorc`.
 
 
-## Contributing
+## Contributing to the project.
 
 If you want to:
 
@@ -118,3 +118,39 @@ If you want to:
 * Be awesome.
 
 Make sure you star and fork the project on GitHub, make your changes, and submit pull requests.
+
+
+## Alternatives and inspiration.
+
+I've been using a variety of things patched together for a while.  Some of these include:
+
+* [Oh-My-Zsh](https://github.com/robbyrussell/oh-my-zsh)
+* [Prezto](https://github.com/sorin-ionescu/prezto)
+* [Alice's Dotfiles](https://github.com/amcgregor/dotfiles/tree/dotfiles/.zsh)
+* [Zsh Themes](https://zshthem.es/all/)
+
+In learning how to put this together, many resources were used:
+
+* The `info zsh` command.
+* The #zsh on irc.freenode.net IRC channel, and their awesome users.
+* https://stackoverflow.com/a/8743103/211827
+* https://unix.stackexchange.com/a/22969
+* https://pangea.stanford.edu/computing/unix/formatting/
+* http://tim.vanwerkhoven.org/post/2012/10/28/ZSH/Bash-string-manipulation
+* http://softpanorama.org/Scripting/Shellorama/Reference/string_operations_in_shell.shtml
+* http://www.tldp.org/LDP/abs/html/parameter-substitution.html
+* https://stackoverflow.com/a/29073092/211827
+* http://zzapper.co.uk/zshtips.html
+* https://dougblack.io/words/zsh-vi-mode.html
+* https://stackoverflow.com/a/3791786/211827
+* [https://blogs.oracle.com/breakdown/entry/arrays_in_zsh](https://web.archive.org/web/20131215235617/https://blogs.oracle.com/breakdown/entry/arrays_in_zsh) (Archived)
+
+Pretty prompt defaul visual appearance:
+
+* https://github.com/edkolev/promptline.vim
+
+For Git SCM integration:
+
+* https://git-scm.com/docs/pretty-formats
+* https://github.com/jwiegley/git-scripts
+* https://gist.github.com/iPenguin/1266869
