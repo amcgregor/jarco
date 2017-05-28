@@ -1,0 +1,663 @@
+#!/usr/bin/env bash
+#
+# TRUE POWER OF UNIX
+# TODO: Integrate into git itself a la git-wtf.
+#
+# Options:
+# --help -- Display help.
+# --no-tips -- Hide helpful tips; for experts.
+# --quiet, -q -- Only display sections containing tips, warnings, or errors, barring use of --no-tips.
+# --all, -a -- Do not limit differences listed by the remote section or issue references by github section.
+# [section] -- Only display a specific named section; see below.
+#
+# Sections:
+#  - local
+#  - upstream
+#  - integration
+#  - remotes
+#  - github
+#  - signature
+
+
+{  # configuration
+	
+	# Scalars
+	
+	# TODO: Calculate this from the git repo's name…
+	name=`basename $PWD`
+	re_ref="([\w_-]+\\/[\w_-])?#([0-9]+)"
+	re_close="(close[sd]?|fix(es|d)?|resolve[sd]?)\\s+${re_ref}"
+	
+	# Command aliases, for use in tips.
+	
+	[[ -n "$ZSH_VERSION" && \
+		-n "$(grep 'amcgregor/dotfiles' `readlink ~/.zsh 2>/dev/null`/../.git/config 2>/dev/null)" ]] \
+		&& enlightened=1
+	
+	if [[ $enlightened -gt 0 ]]; then
+		g_pull="pull"
+		g_rh="grh"
+		g_add="add"
+		g_co="co"
+		g_st="st"
+	else
+		g_pull="git pull"
+		g_rh="git reset HEAD"
+		g_add="git add"
+		g_co="git checkout"
+		g_st="git status"
+	fi
+	
+	# Formatting Primitives
+	
+	f_pfx="%w($COLS,0,4) "
+	f_pfx_note="%w($COLS,3,5)"
+	f_name="%C(bold white)${name}%C(reset)"
+	
+	# Color Primitives
+	
+	c_b="%C(bold)"
+	c_r="%C(reset)"
+	c_o="%C(bold green)"
+	c_w="%C(bold yellow)"
+	c_e="%C(red)"
+	
+	# Brighter colors for darker, 256-color capable terminals with faded defaults.
+	#local c_o="%C(41)"
+	#local c_w="%C(227)"
+	#local c_e="%C(160)"
+	
+	# Color Theme
+	
+	t_git="%C(bold)"
+	t_acent="%C(unbold)"
+	t_hash="%C(bold yellow)"
+	t_branch="%C(teal)"
+	t_branch_feature="%C(bold)"
+	t_time="%C(bold green)"
+	t_person="%C(bold blue)"
+	t_email="%C(dim white)"
+	t_signed=""
+	t_untrusted=""
+	
+	# Common Symbology
+	
+	s_s="⁂ "
+	# Alternatives:
+	#s_s="⌁ "
+	#s_s="· "
+	#s_s="⁓ "
+	#s_s="⸫ "
+	#s_s="⁖ "
+	s_w="${c_w}${s_s}${c_r}"
+	s_e="${c_e}${s_s}${c_r}"
+	s_t="${c_b}${s_s}${c_r}"
+	
+	# Status Symbology
+	
+	s_stat_clean="${c_o}⊜ ${c_r}"
+	s_stat_dirty_w="${c_w}⊙ ${c_r}"
+	s_stat_dirty_e="${c_e}⊙ ${c_r}"
+	s_stat_dirty=$s_stat_dirty_w
+	s_stat_conflict="${c_e}⊛ ${c_r}"
+	
+}
+
+
+echo -en "\r"
+
+
+######################################################################################################################
+# Sections
+
+render_local() {
+	# local
+	#
+	# Based on the output of the `git status` command, made more compact, informative, and attractive.
+	# Displays a report on the last commit of the current branch.
+	#
+	# On branch feature/heirarchical
+	# Your branch is behind 'origin/feature/heirarchical' by 1 commit, and can be fast-forwarded.
+	#   (use "git pull" to update your local branch)
+	# Changes to be committed:
+	#   (use "git reset HEAD <file>..." to unstage)
+	#
+	#         modified:   setup.cfg
+	#
+	# Changes not staged for commit:
+	#   (use "git add <file>..." to update what will be committed)
+	#   (use "git checkout -- <file>..." to discard changes in working directory)
+	#
+	#         modified:   marrow/mongo/core/field/array.py
+	#
+	# Untracked files:
+	#   (use "git add <file>..." to include in what will be committed)
+	#
+	#         example/contentment.py
+	
+	# TODO: Detect a lack of repository.
+	# TODO: Detect a lack of a commit on the repository.
+	
+	# Some statistics or values we need to pre-calculate for the "local" widget.
+	
+	local kind
+	local sub
+	
+	# File change counts for each section of a "git status" report.
+	for kind in uncommitted unstaged untracked; do
+		local -i "s_$kind=0"
+		
+		# Lines of change counts, for each section of the "git status" report.
+		for sub in added removed; do
+			local -i s_${kind}_lines_${sub}=0
+			
+			if [ "$kind" != "untracked" ]; then
+				local -i s_${kind}_lines_${sub}=0
+			fi
+		done
+		
+		# Breakdowns of changes by type.
+		if [[ "$kind" != "untracked" ]]; then
+			for sub in added broken changed copied deleted modified renamed unknown unmerged binary_count binary_size; do
+				local -i s_${kind}_${sub}=0
+			done
+		fi
+	done
+	
+	calc_totals() {
+		# calculate file, line, and change counts for tracked files
+		
+		local sub
+		local mname=$1
+		local args=$2
+		
+		set --
+		
+		for sub in files added broken changed copied deleted modified renamed unknown unmerged binary_count binary_size lines_added lines_removed; do
+			local -i n_${sub}=0
+		done
+		
+		# Count files by category.
+		while read line; do
+			n_files+=1
+			
+			case "$line" in
+				A*) n_added+=1 ;;
+				B*) n_broken+=1 ;;
+				C*) n_copied+=1 ;;
+				D*) n_deleted+=1 ;;
+				M*) n_modified+=1 ;;
+				R*) n_renamed+=1 ;;
+				T*) n_changed+=1 ;;
+				U*) n_unmerged+=1 ;;
+				*) n_unknown+=1 ;;
+			esac
+		done < <(git diff --name-status $args)
+		
+		# Count lines of change.
+		while read line; do
+			set -- ${line}
+			if [[ "$1" == "-" && "$2" == "-" ]]; then
+				n_binary_count+=1
+				n_binary_size+=$(stat -f%z $3)
+			else
+				n_lines_added+=$1
+				n_lines_removed+=$2
+			fi
+		done < <(git diff --numstat $args)
+		
+		# Export.
+		export "$mname=$n_files"
+		for sub in added broken changed copied deleted modified renamed unknown unmerged binary_count binary_size lines_added lines_removed; do
+			local var=n_$sub
+			export "${mname}_${sub}=${!var}"
+		done
+	}
+	
+	{	# calculation
+		
+		local -i s_untracked=$(($(git ls-files --others --exclude-standard 2>/dev/null | wc -l) +0))
+		calc_totals s_uncommitted "--cached"
+		calc_totals s_unstaged ""
+		
+		local s_uncommitted_binary_size_human=$(gnumfmt --to=iec-i --suffix=B --format="%.1f" ${s_uncommitted_binary_size})
+	}
+	
+	{	# rendering
+		local m_stat_warning=""
+		
+		# Localizable Status Messages
+		[[ $s_uncommitted_binary_count -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_binary_commit="Stage contains ${s_uncommitted_binary_count} binary file${l_s} totalling ${s_uncommitted_binary_size_human} of storage."
+		[[ $s_uncommitted -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_dirty_staged="Stage contains ${s_uncommitted} uncommitted change${l_s}."
+		[[ $s_unstaged -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_dirty_modified="Working directory contains ${s_unstaged} unstaged file${l_s}."
+		[[ $s_untracked -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_dirty_untracked="Working directory contains ${s_untracked} untracked file${l_s}."
+		local l_stat_dirty="Run ${t_git}${g_st}${c_r} for details."
+		
+		# Status Data Collection
+		[[ $s_uncommitted -gt 0 ]] && s_stat_dirty=$s_stat_dirty_e && m_stat_warning+="%n${s_e}${l_stat_dirty_staged}"
+		[[ $s_uncommitted_binary_size -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_binary_commit}"
+		[[ $s_unstaged -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_dirty_modified}"
+		[[ $s_untracked -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_dirty_untracked}"
+		[[ -n "$m_stat_warning" ]] && m_stat_warning+="%n${s_t}${l_stat_dirty}"
+		
+		# Status Messages
+		local m_stat_base=" ${f_name} ${t_hash}%h${c_r}${t_delta} ${t_time}%cr${c_r} ${t_person}%aN${c_r} ${t_email}<%aE>${c_r}%n%s"
+		local m_stat_clean="${f_pfx}${s_stat_clean}${m_stat_base}"
+		local m_stat_dirty="${f_pfx}${s_stat_dirty}${m_stat_base}${f_pfx_note}${m_stat_warning}"
+		
+		# Status Selection
+		if [[ $s_uncommitted -gt 0 || $s_unstaged -gt 0 ]]; then
+			local m_stat=${m_stat_dirty}
+		else
+			local m_stat=${m_stat_clean}
+		fi
+	}
+	
+	git log -1 --color --pretty=format:"${m_stat}"
+}
+
+
+render_upstream() {
+	# upstream
+	#
+	# Display information on the local repository's relationship to its tracking remote, or "upstream branch".
+	#
+	# Based on the output of the `git wtf` command, made more compact, informative, and attractive.
+	#
+	# Local branch: develop
+	# [x] in sync with remote
+	# Remote branch: origin/develop (git@github.com:illico/rita.git)
+	# [x] in sync with local
+	# 
+	# Integration branches:
+	# [ ] NOT merged into master (5 commits ahead)
+	#     - Correction for company update and job un-expiry on update. [3a287081]
+	#     - Property collection correction during job creation. [a2e559ec]
+	#     - Merge branch 'develop' of github.com:illico/rita into develop [763884cb]
+	#     - Correction for property iteration. [c2dc0d0b]
+	#     - Package editing interface. #2064 [91d21677]
+	
+	# Some statistics or values we need to pre-calculate for the "local" widget.
+	
+	local kind
+	local sub
+	
+	# File change counts for each section of a "git status" report.
+	for kind in uncommitted unstaged untracked; do
+		local -i "s_$kind=0"
+		
+		# Lines of change counts, for each section of the "git status" report.
+		for sub in added removed; do
+			local -i s_${kind}_lines_${sub}=0
+			
+			if [ "$kind" != "untracked" ]; then
+				local -i s_${kind}_lines_${sub}=0
+			fi
+		done
+		
+		# Breakdowns of changes by type.
+		if [[ "$kind" != "untracked" ]]; then
+			for sub in added broken changed copied deleted modified renamed unknown unmerged binary_count binary_size; do
+				local -i s_${kind}_${sub}=0
+			done
+		fi
+	done
+	
+	calc_totals() {
+		# calculate file, line, and change counts for tracked files
+		
+		local sub
+		local mname=$1
+		local args=$2
+		
+		set --
+		
+		for sub in files added broken changed copied deleted modified renamed unknown unmerged binary_count binary_size lines_added lines_removed; do
+			local -i n_${sub}=0
+		done
+		
+		# Count files by category.
+		while read line; do
+			n_files+=1
+			
+			case "$line" in
+				A*) n_added+=1 ;;
+				B*) n_broken+=1 ;;
+				C*) n_copied+=1 ;;
+				D*) n_deleted+=1 ;;
+				M*) n_modified+=1 ;;
+				R*) n_renamed+=1 ;;
+				T*) n_changed+=1 ;;
+				U*) n_unmerged+=1 ;;
+				*) n_unknown+=1 ;;
+			esac
+		done < <(git diff --name-status $args)
+		
+		# Count lines of change.
+		while read line; do
+			set -- ${line}
+			if [[ "$1" == "-" && "$2" == "-" ]]; then
+				n_binary_count+=1
+				n_binary_size+=$(stat -f%z $3)
+			else
+				n_lines_added+=$1
+				n_lines_removed+=$2
+			fi
+		done < <(git diff --numstat $args)
+		
+		# Export.
+		export "$mname=$n_files"
+		for sub in added broken changed copied deleted modified renamed unknown unmerged binary_count binary_size lines_added lines_removed; do
+			local var=n_$sub
+			export "${mname}_${sub}=${!var}"
+		done
+	}
+	
+	{	# calculation
+		
+		local -i s_untracked=$(($(git ls-files --others --exclude-standard 2>/dev/null | wc -l) +0))
+		calc_totals s_uncommitted "--cached"
+		calc_totals s_unstaged ""
+		
+		local s_uncommitted_binary_size_human=$(gnumfmt --to=iec-i --suffix=B --format="%.1f" ${s_uncommitted_binary_size})
+	}
+	
+	{	# rendering
+		local m_stat_warning=""
+		
+		# Localizable Status Messages
+		[[ $s_uncommitted_binary_count -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_binary_commit="Stage contains ${s_uncommitted_binary_count} binary file${l_s} totalling ${s_uncommitted_binary_size_human} of storage."
+		[[ $s_uncommitted -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_dirty_staged="Stage contains ${s_uncommitted} uncommitted change${l_s}."
+		[[ $s_unstaged -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_dirty_modified="Working directory contains ${s_unstaged} unstaged file${l_s}."
+		[[ $s_untracked -ne 1 ]] && local l_s="s" || local l_s=""
+		local l_stat_dirty_untracked="Working directory contains ${s_untracked} untracked file${l_s}."
+		local l_stat_dirty="Run ${t_git}${g_st}${c_r} for details."
+		
+		# Status Data Collection
+		[[ $s_uncommitted -gt 0 ]] && s_stat_dirty=$s_stat_dirty_e && m_stat_warning+="%n${s_e}${l_stat_dirty_staged}"
+		[[ $s_uncommitted_binary_size -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_binary_commit}"
+		[[ $s_unstaged -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_dirty_modified}"
+		[[ $s_untracked -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_dirty_untracked}"
+		[[ -n "$m_stat_warning" ]] && m_stat_warning+="%n${s_t}${l_stat_dirty}"
+		
+		# Status Messages
+		local m_stat_base=" ${f_name} ${t_hash}%h${c_r}${t_delta} ${t_time}%cr${c_r} ${t_person}%aN${c_r} ${t_email}<%aE>${c_r}%n%s"
+		local m_stat_clean="${f_pfx}${s_stat_clean}${m_stat_base}"
+		local m_stat_dirty="${f_pfx}${s_stat_dirty}${m_stat_base}${f_pfx_note}${m_stat_warning}"
+		
+		# Status Selection
+		if [[ $s_uncommitted -gt 0 || $s_unstaged -gt 0 ]]; then
+			local m_stat=${m_stat_dirty}
+		else
+			local m_stat=${m_stat_clean}
+		fi
+	}
+	
+	git log -1 --color --pretty=format:"${m_stat}"
+}
+
+
+
+
+
+
+
+
+render_local
+
+
+
+exit
+
+
+
+
+
+
+function render_() {
+	# label
+	#
+	# desc
+	
+	{	# calculation
+		
+		
+		
+	}	
+	
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+# A(dded), C(opied), D(eleted), M(odified), R(enamed), T (changed), U(nmerged), X (unknown), B(broken)
+#while read line; do
+#	case "$line" in
+#		M*) modified_count=$(( $modified_count + 1 )) ;;
+#		U*) unmerged_count=$(( $unmerged_count + 1 )) ;;
+#	esac
+#done < <(git diff --name-status)
+
+#while read line; do
+#	case "$line" in
+#		*) added_count=$(( $added_count + 1 )) ;;
+#	esac
+#done < <(git diff --name-status --cached)
+
+#if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+#	local has_untracked_files=1
+#fi
+
+#if [ $(( unmerged_count + modified_count + has_untracked_files + added_count )) -eq 0 ]; then
+#	local is_clean=1
+#fi
+
+{ # Local repository status relative to last commit.
+}
+
+
+
+
+
+# Remotes
+
+if [[ -e "git rev-parse --symbolic-full-name @{u} 2>/dev/null" ]]; then
+fi
+
+
+# TODO: Determine if we even have an upstream remote... warn if we don't!
+
+# Some statistics or values we need to pre-calculate for the "remote" widget.
+
+# Count of commits ahead vs. behind the upstream remote.
+set -- $(git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null)
+local m_remote_behind=$(($1 + 0))
+local m_remote_ahead=$(($2 + 0))
+
+# File counts for each section of a "git status" report.
+local m_stat_uncommitted=0
+local m_stat_unstaged=0
+local m_stat_untracked=0
+
+
+{ # Cryptographic code integrity.
+	set -f -- $(git log -1 --color=never --pretty=format:'%G? %GK %GS' 2>/dev/null)
+	local m_sign_status=$1
+	local m_sign_identity=$2
+	shift 2
+	local m_sign_person=${@}
+	local m_sign_warning=""
+	s_person=${s_person// \(/ %C(nobold)(}
+	s_person=${s_person// </ %C(nobold dim white)<}
+	
+	local m_stat_s="%C(reset) ${s_name} signature status: "
+	local s_trusted="${m_pfx}${c_o}⊕ ${s__s}"
+	local s_untrusted="${m_pfx}${c_w}⊝ ${s__s} %C(ul bold 166)untrusted%C(reset)
+	${c_hash}%GK%C(reset) %C(bold blue)${s_person}%C(reset)
+	${s_w}You may need to add this identity to your keychain."
+	local s_unknown="${m_pfx}${c_e}⊗ %C(reset) ${s_name} signature status:"
+	
+	
+	local m_sign_state=""
+	local m_sign_state_c=""
+	
+	
+	case "$m_sign_status" in
+		G*) # Signed, valid, trusted.
+			m_sign_state="signed"
+			m_sign_state_c=$t_${m_sign_state}
+			;;
+		B*) # Signed, invalid.
+			m_sign_state="invalid"
+			m_sign_state_c="${c_g}"
+			;;
+		U*) # Signed, unknown validity.
+			m_sign_state=""
+			m_sign_state_c="${c_g}"
+			;;
+		X*) # Signed, expired signature.
+			m_sign_state="signed"
+			m_sign_state_c="${c_g}"
+			;;
+		Y*) # Signed, expired key.
+			m_sign_state="signed"
+			m_sign_state_c="${c_g}"
+			;;
+		R*) # SIgned, revoked key.
+			m_sign_state="signed"
+			m_sign_state_c="${c_g}"
+			;;
+		E*) # Can't check, missing key?
+			m_sign_state="signed"
+			m_sign_state_c="${c_g}"
+			;;
+		N*) # Not signed.
+			m_sign_state="signed"
+			m_sign_state_c="${c_g}"
+			;;
+		*) # Unknown.
+			m_sign_state="signed"
+			m_sign_state_c="${c_g}"
+			;;
+	esac
+	
+	
+	
+	
+	# N(ot signed), G(ood signature), B(ad signature), U(ntrusted signer, but good), 
+	case "$signing_status" in
+		N*) git log -1 --color --pretty=format:"${repo_warn} signature status: %C(ul bold 166)unsigned%C(reset)" ;;
+		#G*) git log -1 --color --pretty=format:"${repo_ok} signature status: %C(bold 41)signed%C(reset)%n%C(bold yellow)%GK%C(reset) %C(bold blue)${signing_person}%C(reset)" ;;
+		G*) git log -1 --color --pretty=format:"${s_untrusted}" ;;
+		*) git log -1 --color --pretty=format:"${repo_error} signature status: %C(ul bold 160)unknown%C(reset)%n%C(green)%GK%C(nobold) %GS%C(reset)" ;;
+	esac
+	
+	# Localizable Status Messages
+	[[ $m_stat_unstaged -ne 1 ]] && local l_s="s" || local l_s=""
+	local l_stat_dirty_staged="Stage contains ${m_stat_unstaged} uncommitted file${l_s}."
+	[[ $m_stat_modified -ne 1 ]] && local l_s="s" || local l_s=""
+	local l_stat_dirty_modified="Working directory contains ${m_stat_modified} modified file${l_s}."
+	local l_stat_dirty="Run %C(bold)git status%C(reset) for details."
+	
+	# Status Data Collection
+	[[ $m_stat_unstaged -gt 0 ]] && s_stat_dirty=$s_stat_dirty_e && m_stat_warning+="%n${s_e}${l_stat_dirty_staged}"
+	[[ $m_stat_modified -gt 0 ]] && m_stat_warning+="%n${s_w}${l_stat_dirty_modified}"
+	[[ $m_stat_modified -gt 0 || $m_stat_unstaged -gt 0 ]] && m_stat_warning+="%n${s_t}${l_stat_dirty}"
+	
+	# Status Messages
+	local m_stat_base=" ${f_name} ${t_hash}%h${c_r} ${t_time}%cr${c_r} by ${t_person}%aN${c_r} ${t_email}<%aE>${c_r}%n%s"
+	local m_stat_clean="${f_pfx}${s_stat_clean}${m_stat_base}"
+	local m_stat_dirty="${f_pfx}${s_stat_dirty}${m_stat_base}${f_pfx_note}${m_stat_warning}"
+	local m_stat_conflict="${f_pfx}${s_stat_conflict}${m_stat_base}%n"
+	
+	# Status Selection
+	if [[ $m_stat_modified -gt 0 || $m_stat_unstaged -gt 0 ]]; then
+		local m_stat=${m_stat_dirty}
+	else
+		local m_stat=${m_stat_clean}
+	fi
+	
+	git log -1 --color --pretty=format:"${m_stat}"
+}
+
+
+
+
+
+
+
+
+
+# Code Signature Messages
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#local branch=`git name-rev --name-only HEAD`
+
+
+#echo "name ${name}"
+#echo "branch ${branch}"
+#echo "behind_count ${behind_count}"
+#echo "ahead_count ${ahead_count}"
+#echo "modified_count ${modified_count}"
+#echo "unmerged_count ${unmerged_count}"
+#echo "added_count ${added_count}"
+#echo "has_untracked_files ${has_untracked_files}"
+#echo "is_clean ${is_clean}"
+
+
+
+# Current status.
+
+# Detached head: ~ in branch.
+#local repodetached=${repoowarn}
+#git log -1 --color --pretty=format:"${repo_detached} is %C(ul red)detached%C(reset) from %C(bold yellow)${branch}%C(reset) with refs: %C(dim yellow)%D%C(reset)[simulated]"
+
+# Normal.
+#git log -1 --color --pretty=format:"${repo} is on branch %C(bold yellow)${branch}%C(reset) with refs: %C(dim yellow)%D%C(reset)%n"
+
+
+
+# Signing information.
+
+
+# A(dded), C(opied), D(eleted), M(odified), R(enamed), T (changed), U(nmerged), X (unknown), B(broken)
+
+# signed == N -- no signature
+# signed == G -- good signature
+# signed == U -- untrusted signer
+# signed == B -- bad signature
+
+# other -- (X, Y, R, E)
+
+}
