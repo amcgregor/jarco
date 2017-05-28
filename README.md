@@ -65,6 +65,19 @@ This is not a comprehensive list.
 
 ### The fast path.
 
+> TODO: This hasn't been tested, as there's not content there yet. Feedback welcome on the approach! ;)
+
+```zsh
+curl -fsSL jarco.sh | gsed -n '3,/-->/p' | zsh
+```
+
+```zsh
+curl -fsSL jarco.sh | awk '3,/-->/p' | zsh
+```
+
+
+### The process.
+
 If you only want to use what is provided, you'll need to:
 
 * Make sure you have Zsh and Git.
