@@ -1,0 +1,13 @@
+# Suspended Job Count
+
+function __jarco_jobs {
+	# Identify the number of suspended jobs.
+	local l_count=0 l_job
+	
+	while read l_job; do
+		[[ ${l_job} == \[* ]] || continue
+		l_count+=1
+	done < <(jobs)
+	
+	printf "%s" "${l_count}"
+}

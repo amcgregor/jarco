@@ -1,0 +1,29 @@
+# Active Vi Mode
+
+if [ $JARCO_MODE_ABBREV ]; then
+	local l_mode_emacs="E"
+	local l_mode_normal="N"
+	local l_mode_insert="I"
+	local l_mode_replace="R"
+	local l_mode_visual="V"
+	local l_mode_unknown="X"
+else
+	local l_mode_emacs="emacs"
+	local l_mode_normal="normal"
+	local l_mode_insert="insert"
+	local l_mode_replace="replace"
+	local l_mode_visual="visual"
+	local l_mode_unknown="unknown"
+fi
+
+function __jarco_mode {
+	# Identify the current prompt "mode".
+	case "$KEYMAP" in
+		vicmd*)
+			# TODO: Detect visual as the combination of mark set and region active.
+			echo "${l_mode_normal}"
+			;;
+		viins*) echo "${l_mode_insert}" ;;
+		*) echo "${l_mode_unknown}" ;;
+	esac
+}

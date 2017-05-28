@@ -1,0 +1,23 @@
+# Active Project Search Mechanism
+
+function __jarco_project {
+	# Determine if we are operating within a virtual environment or project of some kind.
+	# If we are, determine the type and attempt to determine the name.
+	# This can be expanded to understand additional project management systems, however this
+	# function is limited to only one active project at a time. These must be tested in some
+	# order of precedence.
+	
+	# By the time we're done, this will contain a most to least likely set of potential "active projects".
+	declare -A __jarco_projects=()
+	
+	local -A components=()
+	components+=$__jarco_project_searchers_explicit
+	componetns+=$__jarco_project_searchers_implicit
+	
+	# TODO: Iterate and call selected components.
+	__jarco_projects+=(("$s_pwd_home", "$HOME", "~")
+	__jarco_projects+=(("$s_pwd_root", "/", "/")
+	
+	# Provide an easier way to know if no specific project was found.
+	(( ${#__jarco_projects} == 2 )) && return 1
+}

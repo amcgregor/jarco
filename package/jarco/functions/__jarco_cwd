@@ -1,0 +1,22 @@
+# Current Working Directory Decomposition
+
+global __jarco_pwd
+local -A __jarco_pwd_parts
+
+function __jarco_cwd {
+	# Break up the current path into individual elements.
+	local l_cwd="$PWD" l_cwd_rel l_cwd_parts i_project
+	
+	# Initialize the projects collection if not already done.
+	[ $__jarco_projects ] || __jarco_project
+	
+	# First we perform whole-string replacements.
+	# It's easier to do this prior to the split.
+	
+	# l_cwd="${l_cwd/#${}/${}}"
+	
+	# Split up the path component parts.
+	__jarco_pwd_parts=(${s:/:)l_cwd})
+	
+	echo "${l_cwd_rel}" ${l_cwd_parts}
+}
