@@ -2,6 +2,8 @@
 
 Pluggable project search, path abbreviation, and SCM integration for Zsh, plus one heck of an attractive promptline.vim-inspired prompt requiring a Powerline font.
 
+<img align="center" src="http://s.webcore.io/1n001z2D000j/Screen%20Recording%202017-05-28%20at%2021.26.gif" alt="demonstration of pretty">
+
 
 ## What is jarco, really?
 
